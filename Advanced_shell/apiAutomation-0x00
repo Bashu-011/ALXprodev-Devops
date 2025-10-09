@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# fetching pikachu/pokeon data
+
+set -uo pipefail
+
+URL="https://pokeapi.co/api/v2/pokemon/pikachu"
+OUT="data.json"
+ERRLOG="errors.txt"
+TMP="$(mktemp --suffix=.tmp || mktemp)" #portable fallback
+
+# curl options
+# silent: no progress meter
+CURL_OPTS=( --silent --show-error --location --max-time 30 --retry 3 --retry-delay 2 --retry-connrefused )
+
+# the request: write body to $TMP and print status code to stdout
+http_code="$(curl "${CURL_OPTS[@]}" -w "%{http_code}" -o "$TMP" "$URL")"
+curl_exit=$?
+
+timestamp() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+if [[ $curl_exit -ne 0 ]]; then
+  # in case of network error
+  printf '%s ERROR: curl exit=%d fetching %s\n' "$(timestamp)" "$curl_exit" "$URL" >> "$ERRLOG"
+  # any partial response for debugging
+  if [[ -s "$TMP" ]]; then
+    printf '%s PARTIAL RESPONSE (first 1024 bytes):\n' "$(timestamp)" >> "$ERRLOG"
+    head -c 1024 "$TMP" >> "$ERRLOG"
+    printf '\n---\n' >> "$ERRLOG"
+  fi
+  rm -f "$TMP"
+  exit 1
+fi
+
+# check status code if CURL works
+if [[ "$http_code" -ne 200 ]]; then
+  printf '%s ERROR: HTTP %s fetching %s\n' "$(timestamp)" "$http_code" "$URL" >> "$ERRLOG"
+  # copy of the response
+  if [[ -s "$TMP" ]]; then
+    printf '%s RESPONSE BODY (truncated 4096 bytes):\n' "$(timestamp)" >> "$ERRLOG"
+    head -c 4096 "$TMP" >> "$ERRLOG"
+    printf '\n---\n' >> "$ERRLOG"
+  fi
+  rm -f "$TMP"
+  exit 1
+fi
+
+#move to output file
+mv "$TMP" "$OUT"
+printf '%s OK: saved %s to %s\n' "$(timestamp)" "$URL" "$OUT"
+exit 0
