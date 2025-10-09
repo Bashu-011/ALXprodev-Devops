@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# report with pokemon name, height, and weight, plus averages
+
+set -euo pipefail
+
+DATA_DIR="pokemon_data"
+REPORT_FILE="pokemon_report.csv"
+
+# check if data directory exists
+if [[ ! -d "$DATA_DIR" ]]; then
+  echo "Error: Directory '$DATA_DIR' not found. Run the fetch script first."
+  exit 1
+fi
+
+#overwrite report file with header
+echo "Name,Height (m),Weight (kg)" > "$REPORT_FILE"
+
+# loop through all json files
+for file in "$DATA_DIR"/*.json; do
+  # skip if not found
+  [[ -e "$file" ]] || { echo "No JSON files found in $DATA_DIR"; exit 1; }
+
+  #extract data
+  name=$(jq -r '.name' "$file" | sed 's/.*/\u&/')
+  height=$(jq -r '.height' "$file" | awk '{printf "%.1f", $1 * 0.1}')
+  weight=$(jq -r '.weight' "$file" | awk '{printf "%.1f", $1 * 0.1}')
+
+  # append to CSV
+  echo "$name,$height,$weight" >> "$REPORT_FILE"
+done
+
+# show on done
+echo "CSV Report generated at: $REPORT_FILE"
+echo ""
+
+#print 
+cat "$REPORT_FILE"
+echo ""
+
+# calculate averages using awk
+awk -F, 'NR>1 {h+=$2; w+=$3; c++} END {
+  if (c>0) {
+    printf "\nAverage Height: %.2f m\nAverage Weight: %.2f kg\n", h/c, w/c
+  }
+}' "$REPORT_FILE"
