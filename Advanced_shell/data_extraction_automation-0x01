@@ -13,8 +13,10 @@ fi
 # jq to extract needed fields
 name=$(jq -r '.name' "$JSON_FILE" | sed 's/.*/\u&/')  # caps first letter
 type=$(jq -r '.types[0].type.name' "$JSON_FILE" | sed 's/.*/\u&/')
-height=$(jq -r '.height' "$JSON_FILE" | awk '{printf "%.1f", $1 * 0.1}')
-weight=$(jq -r '.weight' "$JSON_FILE" | awk '{val=$1*0.1; if (val == int(val)) printf "%d", val; else printf "%.1f", val}')
+formatted_height=$(jq -r '.height' "$JSON_FILE" | awk '{printf "%.1f", $1 * 0.1}')
+formatted_weight=$(jq -r '.weight' "$JSON_FILE" | awk '{val=$1*0.1; if (val == int(val)) printf "%d", val; else printf "%.1f", val}')
 
 #formatted output
-echo "$name is of type $type, weighs ${weight}kg, and is ${height}m tall."
+echo ["$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."]
+
+echo "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
