@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# get multiple pokemon data in parallel using background processes
+
+set -euo pipefail
+
+DATA_DIR="pokemon_data"
+ERROR_LOG="errors.txt"
+BASE_URL="https://pokeapi.co/api/v2/pokemon"
+POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+
+mkdir -p "$DATA_DIR"
+> "$ERROR_LOG"
+
+echo "Starting fetch"
+
+fetch_pokemon() {
+  local name="$1"
+  local outfile="${DATA_DIR}/${name}.json"
+  local url="${BASE_URL}/${name}"
+
+  echo "Fetching ${name}"
+  response_code=$(curl -s -o "$outfile" -w "%{http_code}" "$url")
+
+  if [[ "$response_code" -eq 200 ]]; then
+    echo "Saved data to ${outfile}"
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: Failed to fetch ${name} (HTTP ${response_code})" >> "$ERROR_LOG"
+    rm -f "$outfile"
+    echo "Failed to fetch ${name}"
+  fi
+}
+
+#launch fetches in parallel
+for pokemon in "${POKEMON_LIST[@]}"; do
+  fetch_pokemon "$pokemon" &
+done
+
+#wait for all tasks to finish
+wait
+
+echo ""
+echo "All pokemon fetched successfully."
