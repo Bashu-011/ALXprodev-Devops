@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# extracting pikachu's info from the .json
+set -euo pipefail
+
+JSON_FILE="data.json"
+
+# check if file exists
+if [[ ! -f "$JSON_FILE" ]]; then
+  echo "Error: $JSON_FILE not found. Run the API fetch script first."
+  exit 1
+fi
+
+# jq to extract needed fields
+name=$(jq -r '.name' "$JSON_FILE" | sed 's/.*/\u&/')  # caps first letter
+type=$(jq -r '.types[0].type.name' "$JSON_FILE" | sed 's/.*/\u&/')
+height=$(jq -r '.height' "$JSON_FILE" | awk '{printf "%.1f", $1 * 0.1}')
+weight=$(jq -r '.weight' "$JSON_FILE" | awk '{printf "%.1f", $1 * 0.1}')
+
+#formatted output
+echo "$name is of type $type, weighs ${weight}kg, and is ${height}m tall."
