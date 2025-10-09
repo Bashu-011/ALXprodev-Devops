@@ -4,34 +4,53 @@
 
 set -euo pipefail
 
-# directory to save that data
 DATA_DIR="pokemon_data"
+ERROR_LOG="errors.txt"
 mkdir -p "$DATA_DIR"
 
-# pokemon list
 POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 
-
 BASE_URL="https://pokeapi.co/api/v2/pokemon"
+MAX_RETRIES=3
+DELAY=2  
+RATE_LIMIT_DELAY=2 
 
-#loop through the list
+#clear previous error
+> "$ERROR_LOG"
+
 for name in "${POKEMON_LIST[@]}"; do
   echo "Fetching data for ${name}..."
-
-  # output file for each
   OUT_FILE="${DATA_DIR}/${name}.json"
 
-  #curl data
-  response_code=$(curl -s -o "$OUT_FILE" -w "%{http_code}" "${BASE_URL}/${name}")
+  success=false
+  attempt=1
 
-  #check response
-  if [[ "$response_code" -eq 200 ]]; then
-    echo "Saved data to ${OUT_FILE}"
-  else
-    echo "Failed to fetch data for ${name} (HTTP ${response_code})"
+  #retry
+  while [[ $attempt -le $MAX_RETRIES ]]; do
+    response_code=$(curl -s -o "$OUT_FILE" -w "%{http_code}" "${BASE_URL}/${name}")
+
+    if [[ "$response_code" -eq 200 ]]; then
+      echo "Saved data to ${OUT_FILE}"
+      success=true
+      break
+    else
+      echo "Attempt $attempt failed (HTTP ${response_code}) for ${name}. Retrying in ${DELAY}s..."
+      sleep "$DELAY"
+      ((attempt++))
+    fi
+  done
+
+  #log the error
+  if [[ "$success" == false ]]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: Failed to fetch data for ${name} after ${MAX_RETRIES} attempts (HTTP ${response_code})" >> "$ERROR_LOG"
     rm -f "$OUT_FILE"
+    echo "Skipping ${name}"
   fi
 
-  # wait to repeat
-  sleep 2
+  #delay to prevent rate limiting
+  sleep "$RATE_LIMIT_DELAY"
 done
+
+echo ""
+echo "Batch fetching complete."
+echo "If any errors occurred, check the log file: $ERROR_LOG"
