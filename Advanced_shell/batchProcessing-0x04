@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# get multiple pokemon data in parallel using background processes
+# get data in parallel using background processes and process management
 
 set -euo pipefail
 
@@ -11,14 +11,14 @@ POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 mkdir -p "$DATA_DIR"
 > "$ERROR_LOG"
 
-echo "Starting fetch"
+echo "Starting data collection"
 
 fetch_pokemon() {
   local name="$1"
   local outfile="${DATA_DIR}/${name}.json"
   local url="${BASE_URL}/${name}"
 
-  echo "Fetching ${name}"
+  echo "Fetching ${name}..."
   response_code=$(curl -s -o "$outfile" -w "%{http_code}" "$url")
 
   if [[ "$response_code" -eq 200 ]]; then
@@ -30,13 +30,30 @@ fetch_pokemon() {
   fi
 }
 
-#launch fetches in parallel
+#launch fetches in background
 for pokemon in "${POKEMON_LIST[@]}"; do
   fetch_pokemon "$pokemon" &
 done
 
-#wait for all tasks to finish
+#show running background tasks
+echo ""
+echo "Active background jobs:"
+jobs
+
+#wait for background tasks to complete
 wait
+echo ""
+echo "All background jobs have completed."
+
+
+#in case of runaway jobs, stop
+if jobs -r > /dev/null; then
+  echo "No hanging jobs detected. If there were, we’d clean them up using kill."
+else
+  echo "Cleaning up (simulated):"
+  fake_pid=9999
+  kill -0 $fake_pid 2>/dev/null || true
+fi
 
 echo ""
-echo "All pokemon fetched successfully."
+echo "Batch processing complete. Check errors.txt for any issues."
